@@ -3,16 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tactical Card Battle Prototype</title>
+    <title>Card Hero Style Tactical Prototype</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div id="app">
       <header class="hud">
-        <div id="turn-indicator"></div>
+        <div class="hud-row">
+          <div id="turn-indicator" class="badge"></div>
+          <div id="phase-indicator" class="badge"></div>
+        </div>
+        <div class="hud-row resources">
+          <div id="player-resource" class="resource"></div>
+          <div id="enemy-resource" class="resource"></div>
+        </div>
         <div id="status"></div>
-        <button id="end-turn-btn" type="button">End Turn</button>
-        <button id="restart-btn" type="button" class="hidden">Restart</button>
+        <div class="hud-row">
+          <button id="end-turn-btn" type="button">ターン終了</button>
+          <button id="restart-btn" type="button" class="hidden">リスタート</button>
+        </div>
       </header>
 
       <main>
@@ -27,6 +36,17 @@
 
     <div id="drag-ghost" class="drag-ghost hidden"></div>
     <div id="aim-line" class="aim-line hidden"></div>
+
+    <div id="levelup-overlay" class="overlay hidden" aria-live="polite">
+      <div class="overlay-card">
+        <h3>レベルアップ選択</h3>
+        <p id="levelup-text"></p>
+        <div class="overlay-actions">
+          <button id="levelup-yes" type="button">Level Up</button>
+          <button id="levelup-skip" type="button">Skip</button>
+        </div>
+      </div>
+    </div>
 
     <script src="script.js"></script>
   </body>
