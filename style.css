@@ -78,6 +78,7 @@ body {
   gap: 4px;
   user-select: none;
   cursor: grab;
+  touch-action: none;
 }
 
 .unit.melee { background: #65323a; border-color: #f06c7a; }
@@ -129,6 +130,8 @@ body {
   padding: 8px;
   background: #1d2742;
   cursor: pointer;
+  color: #eef3ff;
+  text-align: left;
 }
 
 .hand-card.selected { border-color: #ffe184; box-shadow: 0 0 0 2px #ffe184 inset; }

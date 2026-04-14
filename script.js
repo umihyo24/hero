@@ -64,6 +64,7 @@ const gameState = {
   hand: initialHand(),
   drag: {
     active: false,
+    pointerId: null,
     sourceSlot: null,
     sourceUnitId: null,
     x: 0,
@@ -237,7 +238,7 @@ function resetGame() {
   gameState.enemyFront = null;
   gameState.enemyBack = null;
   gameState.hand = initialHand();
-  gameState.drag = { active: false, sourceSlot: null, sourceUnitId: null, x: 0, y: 0, validTargets: [] };
+  gameState.drag = { active: false, pointerId: null, sourceSlot: null, sourceUnitId: null, x: 0, y: 0, validTargets: [] };
   gameState.transientEffects = [];
   gameState.selectedHandIndex = null;
   gameState.message = 'カードを召喚し、ユニットをドラッグして攻撃！';
@@ -254,15 +255,17 @@ function startDrag(slotKey, event) {
   const unit = gameState[slotKey];
   if (!unit || unit.owner !== 'player' || gameState.currentTurn !== 'player' || unit.hasActed || gameState.phase === 'gameover') return;
   gameState.drag.active = true;
+  gameState.drag.pointerId = event.pointerId ?? null;
   gameState.drag.sourceSlot = slotKey;
   gameState.drag.sourceUnitId = unit.id;
-  gameState.drag.x = event.clientX;
-  gameState.drag.y = event.clientY;
+  gameState.drag.x = event.clientX ?? 0;
+  gameState.drag.y = event.clientY ?? 0;
   gameState.drag.validTargets = getValidTargetsForUnit(unit);
 }
 
 function cancelDrag() {
   gameState.drag.active = false;
+  gameState.drag.pointerId = null;
   gameState.drag.sourceSlot = null;
   gameState.drag.sourceUnitId = null;
   gameState.drag.validTargets = [];
@@ -368,14 +371,10 @@ function applyEffects(root, now) {
 function renderHand() {
   ui.hand.textContent = '';
   gameState.hand.forEach((card, idx) => {
-    const c = document.createElement('button');
+    const c = document.createElement('div');
     c.className = `hand-card ${gameState.selectedHandIndex === idx ? 'selected' : ''}`;
+    c.dataset.handIndex = String(idx);
     c.textContent = `${card.name} (${card.attackProfile}) ATK${card.attack}/HP${card.hp}`;
-    c.addEventListener('click', () => {
-      if (gameState.currentTurn !== 'player' || gameState.playerSummonedThisTurn || gameState.phase === 'gameover') return;
-      gameState.selectedHandIndex = idx;
-      gameState.message = '前衛か後衛の空きスロットをクリックして召喚';
-    });
     ui.hand.appendChild(c);
   });
 }
@@ -424,16 +423,26 @@ function bindEvents() {
 
   ui.restartBtn.addEventListener('click', resetGame);
 
-  ui.battlefield.addEventListener('mousedown', (e) => {
+  ui.hand.addEventListener('pointerdown', (e) => {
+    const card = e.target.closest('.hand-card');
+    if (!card) return;
+    if (gameState.currentTurn !== 'player' || gameState.playerSummonedThisTurn || gameState.phase === 'gameover') return;
+    gameState.selectedHandIndex = Number(card.dataset.handIndex);
+    gameState.message = '前衛か後衛の空きスロットをクリックして召喚';
+  });
+
+  ui.battlefield.addEventListener('pointerdown', (e) => {
     const unitEl = e.target.closest('.unit');
     if (!unitEl) return;
     const slot = unitEl.closest('[data-key]');
     if (!slot) return;
+    e.preventDefault();
     startDrag(slot.dataset.key, e);
   });
 
-  ui.battlefield.addEventListener('click', (e) => {
+  ui.battlefield.addEventListener('pointerdown', (e) => {
     if (gameState.selectedHandIndex == null || gameState.currentTurn !== 'player' || gameState.phase === 'gameover') return;
+    if (e.target.closest('.unit')) return;
     const slot = e.target.closest('.slot');
     if (!slot) return;
     if (!slot.dataset.key.startsWith('player')) return;
@@ -442,20 +451,26 @@ function bindEvents() {
     if (done) gameState.selectedHandIndex = null;
   });
 
-  document.addEventListener('mousemove', (e) => {
+  document.addEventListener('pointermove', (e) => {
     if (!gameState.drag.active) return;
+    if (gameState.drag.pointerId !== null && e.pointerId !== gameState.drag.pointerId) return;
     gameState.drag.x = e.clientX;
     gameState.drag.y = e.clientY;
   });
 
-  document.addEventListener('mouseup', (e) => {
+  document.addEventListener('pointerup', (e) => {
     if (!gameState.drag.active) return;
+    if (gameState.drag.pointerId !== null && e.pointerId !== gameState.drag.pointerId) return;
     const sourceUnit = gameState[gameState.drag.sourceSlot];
     const targetKey = pickTargetFromPoint(e.clientX, e.clientY);
     if (sourceUnit && targetKey && gameState.drag.validTargets.includes(targetKey)) {
       resolveAttack(sourceUnit, gameState.drag.sourceSlot, targetKey);
     }
     cancelDrag();
+  });
+
+  document.addEventListener('pointercancel', () => {
+    if (gameState.drag.active) cancelDrag();
   });
 }
 
