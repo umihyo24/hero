@@ -1,71 +1,104 @@
 const CONFIG = {
   leaderHP: 24,
-  enemyDelayMs: 500,
-  hitEffectMs: 320,
-  unitTemplates: {
-    melee: { attack: 4, hp: 8, range: 'frontline' },
-    ranged: { attack: 3, hp: 5, range: 'line' },
-    sniper: { attack: 2, hp: 4, range: 'any' },
-  },
+  turnStoneGain: 2,
+  summonCost: 1,
+  levelUpCost: 1,
+  maxHand: 5,
+  enemyDelayMs: 550,
+  hitEffectMs: 300,
+  unitTemplates: [
+    { key: 'adjacent', name: 'Swordsman', attack: 3, hp: 6, maxLevel: 2 },
+    { key: 'one_jump', name: 'Lancer', attack: 2, hp: 5, maxLevel: 2 },
+    { key: 'anywhere', name: 'Sniper', attack: 2, hp: 4, maxLevel: 2 },
+  ],
 };
 
 const ASSETS = {
   leaderPlayer: 'assets/leader-player.svg',
   leaderEnemy: 'assets/leader-enemy.svg',
-  melee: 'assets/melee.svg',
-  ranged: 'assets/ranged.svg',
-  sniper: 'assets/sniper.svg',
-};
-
-const SLOT_META = {
-  enemyBackLeft: { side: 'enemy', lane: 'left', row: 'back', playable: true, label: 'Enemy Back L' },
-  blockedCenterTop: { side: 'none', lane: 'center', row: 'back', playable: false, label: 'Blocked' },
-  enemyBackRight: { side: 'enemy', lane: 'right', row: 'back', playable: true, label: 'Enemy Back R' },
-  enemyFrontLeft: { side: 'enemy', lane: 'left', row: 'front', playable: true, label: 'Enemy Front L' },
-  enemyLeader: { side: 'enemy', lane: 'center', row: 'leader', playable: false, label: 'Enemy Leader' },
-  enemyFrontRight: { side: 'enemy', lane: 'right', row: 'front', playable: true, label: 'Enemy Front R' },
-  playerFrontLeft: { side: 'player', lane: 'left', row: 'front', playable: true, label: 'Player Front L' },
-  playerLeader: { side: 'player', lane: 'center', row: 'leader', playable: false, label: 'Player Leader' },
-  playerFrontRight: { side: 'player', lane: 'right', row: 'front', playable: true, label: 'Player Front R' },
-  playerBackLeft: { side: 'player', lane: 'left', row: 'back', playable: true, label: 'Player Back L' },
-  blockedCenterBottom: { side: 'none', lane: 'center', row: 'back', playable: false, label: 'Blocked' },
-  playerBackRight: { side: 'player', lane: 'right', row: 'back', playable: true, label: 'Player Back R' },
+  adjacent: 'assets/melee.svg',
+  one_jump: 'assets/ranged.svg',
+  anywhere: 'assets/sniper.svg',
 };
 
 const BOARD_ORDER = [
-  'enemyBackLeft', 'blockedCenterTop', 'enemyBackRight',
+  'enemyBackLeft', 'blockedTopCenter', 'enemyBackRight',
   'enemyFrontLeft', 'enemyLeader', 'enemyFrontRight',
   'playerFrontLeft', 'playerLeader', 'playerFrontRight',
-  'playerBackLeft', 'blockedCenterBottom', 'playerBackRight',
+  'playerBackLeft', 'blockedBottomCenter', 'playerBackRight',
 ];
 
+const SLOT_META = {
+  enemyBackLeft: { side: 'enemy', row: 'back', playable: true, label: 'Enemy Back L' },
+  blockedTopCenter: { side: 'none', row: 'blocked', playable: false, label: 'Blocked' },
+  enemyBackRight: { side: 'enemy', row: 'back', playable: true, label: 'Enemy Back R' },
+  enemyFrontLeft: { side: 'enemy', row: 'front', playable: true, label: 'Enemy Front L' },
+  enemyLeader: { side: 'enemy', row: 'leader', playable: false, label: 'Enemy Leader' },
+  enemyFrontRight: { side: 'enemy', row: 'front', playable: true, label: 'Enemy Front R' },
+  playerFrontLeft: { side: 'player', row: 'front', playable: true, label: 'Player Front L' },
+  playerLeader: { side: 'player', row: 'leader', playable: false, label: 'Player Leader' },
+  playerFrontRight: { side: 'player', row: 'front', playable: true, label: 'Player Front R' },
+  playerBackLeft: { side: 'player', row: 'back', playable: true, label: 'Player Back L' },
+  blockedBottomCenter: { side: 'none', row: 'blocked', playable: false, label: 'Blocked' },
+  playerBackRight: { side: 'player', row: 'back', playable: true, label: 'Player Back R' },
+};
+
+const PLAYABLE_SLOTS = BOARD_ORDER.filter((k) => SLOT_META[k].playable);
 const PLAYER_SUMMON_SLOTS = ['playerFrontLeft', 'playerFrontRight', 'playerBackLeft', 'playerBackRight'];
 const ENEMY_SUMMON_SLOTS = ['enemyFrontLeft', 'enemyFrontRight', 'enemyBackLeft', 'enemyBackRight'];
-const ENEMY_TARGETS = ['enemyFrontLeft', 'enemyFrontRight', 'enemyBackLeft', 'enemyBackRight', 'enemyLeader'];
+
+const RANGE_MAP = {
+  adjacent: {
+    playerFrontLeft: ['enemyFrontLeft', 'enemyLeader', 'enemyBackLeft', 'playerBackLeft'],
+    playerFrontRight: ['enemyFrontRight', 'enemyLeader', 'enemyBackRight', 'playerBackRight'],
+    playerBackLeft: ['playerFrontLeft'],
+    playerBackRight: ['playerFrontRight'],
+    enemyFrontLeft: ['playerFrontLeft', 'playerLeader', 'playerBackLeft', 'enemyBackLeft'],
+    enemyFrontRight: ['playerFrontRight', 'playerLeader', 'playerBackRight', 'enemyBackRight'],
+    enemyBackLeft: ['enemyFrontLeft'],
+    enemyBackRight: ['enemyFrontRight'],
+  },
+  one_jump: {
+    playerFrontLeft: ['enemyBackLeft', 'enemyFrontRight'],
+    playerFrontRight: ['enemyBackRight', 'enemyFrontLeft'],
+    playerBackLeft: ['enemyFrontLeft', 'enemyLeader'],
+    playerBackRight: ['enemyFrontRight', 'enemyLeader'],
+    enemyFrontLeft: ['playerBackLeft', 'playerFrontRight'],
+    enemyFrontRight: ['playerBackRight', 'playerFrontLeft'],
+    enemyBackLeft: ['playerFrontLeft', 'playerLeader'],
+    enemyBackRight: ['playerFrontRight', 'playerLeader'],
+  },
+  anywhere: {},
+};
 
 const ui = {
   battlefield: document.getElementById('battlefield'),
   hand: document.getElementById('hand'),
-  turn: document.getElementById('turn-indicator'),
+  turnIndicator: document.getElementById('turn-indicator'),
+  phaseIndicator: document.getElementById('phase-indicator'),
+  playerResource: document.getElementById('player-resource'),
+  enemyResource: document.getElementById('enemy-resource'),
   status: document.getElementById('status'),
   endTurnBtn: document.getElementById('end-turn-btn'),
   restartBtn: document.getElementById('restart-btn'),
   dragGhost: document.getElementById('drag-ghost'),
   aimLine: document.getElementById('aim-line'),
+  levelupOverlay: document.getElementById('levelup-overlay'),
+  levelupText: document.getElementById('levelup-text'),
+  levelupYes: document.getElementById('levelup-yes'),
+  levelupSkip: document.getElementById('levelup-skip'),
 };
 
-const assets = {};
-let unitId = 1;
+const assetStore = {};
+let unitCounter = 1;
 
 const gameState = {
   phase: 'start',
   currentTurn: 'player',
   playerHP: CONFIG.leaderHP,
   enemyHP: CONFIG.leaderHP,
-  leaders: {
-    player: { key: 'playerLeader', name: 'Player Leader' },
-    enemy: { key: 'enemyLeader', name: 'Enemy Leader' },
-  },
+  playerStone: 0,
+  enemyStone: 0,
   board: {
     enemyBackLeft: null,
     enemyFrontLeft: null,
@@ -83,96 +116,403 @@ const gameState = {
     active: false,
     pointerId: null,
     kind: null,
-    cardIndex: null,
+    handIndex: null,
     fromSlot: null,
     unitId: null,
     x: 0,
     y: 0,
     validTargets: [],
   },
+  pendingLevelUp: {
+    active: false,
+    slotKey: null,
+    owner: null,
+  },
   transientEffects: [],
-  playerSummonedThisTurn: false,
   enemyActionAt: null,
   message: '',
   dirty: {
     board: true,
     hand: true,
     hud: true,
+    overlay: true,
   },
 };
 
-function loadAssets() {
-  Object.entries(ASSETS).forEach(([key, src]) => {
-    const img = new Image();
-    assets[key] = { loaded: false, failed: false, src };
-    img.onload = () => {
-      assets[key].loaded = true;
-    };
-    img.onerror = () => {
-      assets[key].failed = true;
-    };
-    img.src = src;
+function markDirty(...parts) {
+  parts.forEach((p) => {
+    gameState.dirty[p] = true;
   });
 }
 
-function createUnit(owner, profile, nameOverride = null) {
-  const tpl = CONFIG.unitTemplates[profile];
+function cloneTemplateForOwner(owner) {
+  const template = CONFIG.unitTemplates[Math.floor(Math.random() * CONFIG.unitTemplates.length)];
   return {
-    id: `${owner}-${unitId++}`,
+    id: `${owner}-${unitCounter++}`,
     owner,
-    attackProfile: profile,
-    attack: tpl.attack,
-    hp: tpl.hp,
-    range: tpl.range,
+    name: template.name,
+    attack: template.attack,
+    hp: template.hp,
+    maxHP: template.hp,
+    level: 0,
+    maxLevel: template.maxLevel,
+    attackProfile: template.key,
+    investedStone: CONFIG.summonCost,
     hasActed: false,
-    name: nameOverride ?? `${owner}-${profile}`,
   };
 }
 
-function createStartingHand() {
-  return [
-    createUnit('player', 'melee', 'Swordsman'),
-    createUnit('player', 'ranged', 'Archer'),
-    createUnit('player', 'sniper', 'Scout Sniper'),
-  ];
+function drawCardForPlayer() {
+  if (gameState.hand.length >= CONFIG.maxHand) return;
+  gameState.hand.push(cloneTemplateForOwner('player'));
+  markDirty('hand');
+}
+
+function loadAssetWithFallback(key, src) {
+  assetStore[key] = { src, loaded: false, failed: false };
+  const img = new Image();
+  img.onload = () => {
+    assetStore[key].loaded = true;
+  };
+  img.onerror = () => {
+    assetStore[key].failed = true;
+  };
+  img.src = src;
+}
+
+function initAssets() {
+  Object.entries(ASSETS).forEach(([key, src]) => loadAssetWithFallback(key, src));
 }
 
 function resetGame() {
-  unitId = 1;
+  unitCounter = 1;
   gameState.phase = 'playing';
   gameState.currentTurn = 'player';
   gameState.playerHP = CONFIG.leaderHP;
   gameState.enemyHP = CONFIG.leaderHP;
-  gameState.board.enemyBackLeft = null;
-  gameState.board.enemyFrontLeft = null;
-  gameState.board.enemyFrontRight = null;
-  gameState.board.enemyBackRight = null;
-  gameState.board.playerFrontLeft = null;
-  gameState.board.playerFrontRight = null;
-  gameState.board.playerBackLeft = null;
-  gameState.board.playerBackRight = null;
-  gameState.hand = createStartingHand();
-  gameState.drag = { active: false, pointerId: null, kind: null, cardIndex: null, fromSlot: null, unitId: null, x: 0, y: 0, validTargets: [] };
+  gameState.playerStone = 0;
+  gameState.enemyStone = 0;
+  PLAYABLE_SLOTS.forEach((slot) => {
+    if (!slot.endsWith('Leader')) gameState.board[slot] = null;
+  });
+  gameState.hand = [];
+  drawCardForPlayer();
+  drawCardForPlayer();
+  drawCardForPlayer();
+  clearDrag();
+  gameState.pendingLevelUp = { active: false, slotKey: null, owner: null };
   gameState.transientEffects = [];
-  gameState.playerSummonedThisTurn = false;
   gameState.enemyActionAt = null;
-  gameState.message = 'カードをドラッグして配置、ユニットをドラッグして攻撃。';
+  gameState.message = 'カードをドラッグして召喚、ユニットをドラッグして攻撃。';
+  startTurn('player');
+  markDirty('board', 'hand', 'hud', 'overlay');
+}
+
+function startTurn(side) {
+  if (side === 'player') {
+    gameState.playerStone += CONFIG.turnStoneGain;
+    Object.entries(gameState.board).forEach(([slot, unit]) => {
+      if (unit && unit.owner === 'player') unit.hasActed = false;
+    });
+    drawCardForPlayer();
+    gameState.message = 'あなたのターン: 召喚と攻撃を実行してください。';
+  } else {
+    gameState.enemyStone += CONFIG.turnStoneGain;
+    Object.entries(gameState.board).forEach(([slot, unit]) => {
+      if (unit && unit.owner === 'enemy') unit.hasActed = false;
+    });
+    gameState.enemyActionAt = performance.now() + CONFIG.enemyDelayMs;
+    gameState.message = '敵のターン';
+  }
+  gameState.currentTurn = side;
   markDirty('board', 'hand', 'hud');
 }
 
-function markDirty(...parts) {
-  parts.forEach((part) => {
-    gameState.dirty[part] = true;
+function endTurn() {
+  if (gameState.phase !== 'playing' || gameState.pendingLevelUp.active) return;
+  const next = gameState.currentTurn === 'player' ? 'enemy' : 'player';
+  startTurn(next);
+}
+
+function getOwnerStone(owner) {
+  return owner === 'player' ? gameState.playerStone : gameState.enemyStone;
+}
+
+function setOwnerStone(owner, value) {
+  if (owner === 'player') gameState.playerStone = value;
+  else gameState.enemyStone = value;
+}
+
+function getAdjacentTargets(slotKey) {
+  return RANGE_MAP.adjacent[slotKey] ?? [];
+}
+
+function getReachableTargets(unit, sourceSlotKey) {
+  if (unit.attackProfile === 'anywhere') {
+    return Object.keys(gameState.board).filter((k) => {
+      if (k.endsWith('Leader')) return true;
+      return SLOT_META[k] && SLOT_META[k].playable;
+    });
+  }
+  const map = RANGE_MAP[unit.attackProfile] || {};
+  return map[sourceSlotKey] || [];
+}
+
+function canUnitAttackTarget(unit, sourceSlotKey, targetKey) {
+  if (!unit || unit.hasActed || !targetKey || sourceSlotKey === targetKey) return false;
+  const meta = SLOT_META[targetKey];
+  if (!meta) return false;
+
+  const reachable = getReachableTargets(unit, sourceSlotKey);
+  if (!reachable.includes(targetKey)) return false;
+
+  if (targetKey.endsWith('Leader')) {
+    const targetOwner = targetKey.startsWith('enemy') ? 'enemy' : 'player';
+    return targetOwner !== unit.owner;
+  }
+
+  const targetUnit = gameState.board[targetKey];
+  return Boolean(targetUnit && targetUnit.owner !== unit.owner);
+}
+
+function getValidAttackTargets(fromSlotKey, unit) {
+  const reachable = getReachableTargets(unit, fromSlotKey);
+  return reachable.filter((targetKey) => canUnitAttackTarget(unit, fromSlotKey, targetKey));
+}
+
+function getValidSummonTargets(owner) {
+  const slots = owner === 'player' ? PLAYER_SUMMON_SLOTS : ENEMY_SUMMON_SLOTS;
+  return slots.filter((slot) => !gameState.board[slot]);
+}
+
+function summonUnit(owner, handIndex, slotKey) {
+  if (owner !== 'player') return false;
+  if (!getValidSummonTargets(owner).includes(slotKey)) return false;
+  if (getOwnerStone(owner) < CONFIG.summonCost) {
+    gameState.message = 'ストーン不足で召喚できません。';
+    markDirty('hud');
+    return false;
+  }
+  const card = gameState.hand[handIndex];
+  if (!card) return false;
+  gameState.hand.splice(handIndex, 1);
+  card.hasActed = true;
+  gameState.board[slotKey] = card;
+  setOwnerStone(owner, getOwnerStone(owner) - CONFIG.summonCost);
+  gameState.message = `${card.name} を ${slotKey} に召喚。`;
+  markDirty('board', 'hand', 'hud');
+  return true;
+}
+
+function refundInvestedStones(unit) {
+  if (!unit) return;
+  setOwnerStone(unit.owner, getOwnerStone(unit.owner) + unit.investedStone);
+}
+
+function removeDefeatedUnits() {
+  PLAYABLE_SLOTS.forEach((slot) => {
+    const unit = gameState.board[slot];
+    if (!unit || unit.type === 'leader') return;
+    if (unit.hp <= 0) {
+      refundInvestedStones(unit);
+      gameState.board[slot] = null;
+    }
   });
 }
 
-function getAssetNode(key, fallbackText) {
+function applyLeaderDamage(side, damage) {
+  if (side === 'player') gameState.playerHP -= damage;
+  else gameState.enemyHP -= damage;
+}
+
+function checkGameOver() {
+  if (gameState.playerHP <= 0 || gameState.enemyHP <= 0) {
+    gameState.phase = 'gameover';
+    gameState.message = gameState.playerHP <= 0 ? '敗北しました。' : '勝利しました！';
+    markDirty('hud');
+  }
+}
+
+function tryLevelUp(attackerSlotKey, attackerOwner) {
+  const attacker = gameState.board[attackerSlotKey];
+  if (!attacker) return;
+  if (attacker.level >= attacker.maxLevel) return;
+
+  gameState.pendingLevelUp = {
+    active: true,
+    slotKey: attackerSlotKey,
+    owner: attackerOwner,
+  };
+  markDirty('overlay', 'hud');
+}
+
+function applyLevelUpChoice(doLevelUp) {
+  if (!gameState.pendingLevelUp.active) return;
+  const { slotKey, owner } = gameState.pendingLevelUp;
+  const unit = gameState.board[slotKey];
+  if (unit && doLevelUp && getOwnerStone(owner) >= CONFIG.levelUpCost && unit.level < unit.maxLevel) {
+    setOwnerStone(owner, getOwnerStone(owner) - CONFIG.levelUpCost);
+    unit.level += 1;
+    unit.maxHP += 1;
+    unit.hp = unit.maxHP;
+    unit.attack += 1;
+    unit.investedStone += 1;
+    gameState.message = `${unit.name} がレベル ${unit.level} に強化。`;
+  } else if (doLevelUp) {
+    gameState.message = 'ストーン不足または上限でレベルアップ不可。';
+  } else {
+    gameState.message = 'レベルアップを見送りました。';
+  }
+  gameState.pendingLevelUp = { active: false, slotKey: null, owner: null };
+  markDirty('board', 'hud', 'overlay');
+}
+
+function resolveAttack(sourceSlotKey, targetKey) {
+  const attacker = gameState.board[sourceSlotKey];
+  if (!attacker) return false;
+  if (!canUnitAttackTarget(attacker, sourceSlotKey, targetKey)) return false;
+
+  let defeatedUnit = null;
+  if (targetKey.endsWith('Leader')) {
+    const targetSide = targetKey.startsWith('player') ? 'player' : 'enemy';
+    applyLeaderDamage(targetSide, attacker.attack);
+    gameState.message = `${attacker.name} がリーダーに ${attacker.attack} ダメージ。`;
+  } else {
+    const defender = gameState.board[targetKey];
+    defender.hp -= attacker.attack;
+    gameState.message = `${attacker.name} -> ${defender.name} (${attacker.attack}ダメージ)`;
+    if (defender.hp <= 0) {
+      defeatedUnit = defender;
+    }
+  }
+
+  attacker.hasActed = true;
+  gameState.transientEffects.push({ targetKey, until: performance.now() + CONFIG.hitEffectMs });
+
+  removeDefeatedUnits();
+  checkGameOver();
+
+  if (defeatedUnit && gameState.phase === 'playing') {
+    tryLevelUp(sourceSlotKey, attacker.owner);
+  }
+
+  markDirty('board', 'hud', 'overlay');
+  return true;
+}
+
+function findCellAtPoint(x, y) {
+  const element = document.elementFromPoint(x, y);
+  const cell = element ? element.closest('[data-key]') : null;
+  return cell ? cell.dataset.key : null;
+}
+
+function clearDrag() {
+  gameState.drag = {
+    active: false,
+    pointerId: null,
+    kind: null,
+    handIndex: null,
+    fromSlot: null,
+    unitId: null,
+    x: 0,
+    y: 0,
+    validTargets: [],
+  };
+  ui.dragGhost.classList.add('hidden');
+  ui.aimLine.classList.add('hidden');
+}
+
+function beginCardDrag(handIndex, e) {
+  if (gameState.phase !== 'playing' || gameState.currentTurn !== 'player') return;
+  if (gameState.pendingLevelUp.active) return;
+  if (!gameState.hand[handIndex]) return;
+
+  gameState.drag.active = true;
+  gameState.drag.pointerId = e.pointerId;
+  gameState.drag.kind = 'summon';
+  gameState.drag.handIndex = handIndex;
+  gameState.drag.x = e.clientX;
+  gameState.drag.y = e.clientY;
+  gameState.drag.validTargets = getOwnerStone('player') >= CONFIG.summonCost ? getValidSummonTargets('player') : [];
+  gameState.message = gameState.drag.validTargets.length ? '有効スロットにドロップで召喚。' : '召喚できる枠またはストーンがありません。';
+  markDirty('hud');
+}
+
+function beginUnitDrag(slotKey, e) {
+  if (gameState.phase !== 'playing' || gameState.currentTurn !== 'player') return;
+  if (gameState.pendingLevelUp.active) return;
+  const unit = gameState.board[slotKey];
+  if (!unit || unit.owner !== 'player' || unit.hasActed) return;
+
+  gameState.drag.active = true;
+  gameState.drag.pointerId = e.pointerId;
+  gameState.drag.kind = 'attack';
+  gameState.drag.fromSlot = slotKey;
+  gameState.drag.unitId = unit.id;
+  gameState.drag.x = e.clientX;
+  gameState.drag.y = e.clientY;
+  gameState.drag.validTargets = getValidAttackTargets(slotKey, unit);
+  gameState.message = gameState.drag.validTargets.length ? '有効ターゲットへドロップで即攻撃。' : 'このユニットは攻撃可能対象がありません。';
+  markDirty('hud');
+}
+
+function setDropHighlights() {
+  document.querySelectorAll('.drop-valid, .drop-invalid').forEach((el) => {
+    el.classList.remove('drop-valid', 'drop-invalid');
+  });
+  if (!gameState.drag.active) return;
+
+  const candidates = gameState.drag.kind === 'summon'
+    ? PLAYER_SUMMON_SLOTS
+    : BOARD_ORDER.filter((k) => k !== gameState.drag.fromSlot);
+
+  candidates.forEach((key) => {
+    const cell = ui.battlefield.querySelector(`[data-key='${key}']`);
+    if (!cell) return;
+    if (gameState.drag.validTargets.includes(key)) cell.classList.add('drop-valid');
+    else cell.classList.add('drop-invalid');
+  });
+}
+
+function updateDragOverlay() {
+  if (!gameState.drag.active) return;
+
+  if (gameState.drag.kind === 'summon') {
+    const card = gameState.hand[gameState.drag.handIndex];
+    if (!card) return;
+    ui.dragGhost.classList.remove('hidden');
+    ui.dragGhost.style.left = `${gameState.drag.x}px`;
+    ui.dragGhost.style.top = `${gameState.drag.y}px`;
+    ui.dragGhost.textContent = `${card.name} L${card.level} ATK${card.attack} HP${card.hp}`;
+    ui.aimLine.classList.add('hidden');
+    return;
+  }
+
+  ui.dragGhost.classList.add('hidden');
+  const sourceUnitEl = ui.battlefield.querySelector(`[data-key='${gameState.drag.fromSlot}'] .unit`);
+  if (!sourceUnitEl) return;
+  const rect = sourceUnitEl.getBoundingClientRect();
+  const x0 = rect.left + rect.width / 2;
+  const y0 = rect.top + rect.height / 2;
+  const dx = gameState.drag.x - x0;
+  const dy = gameState.drag.y - y0;
+  const len = Math.hypot(dx, dy);
+  const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+  ui.aimLine.classList.remove('hidden');
+  ui.aimLine.style.left = `${x0}px`;
+  ui.aimLine.style.top = `${y0}px`;
+  ui.aimLine.style.width = `${len}px`;
+  ui.aimLine.style.transform = `rotate(${angle}deg)`;
+}
+
+function getAssetNode(assetKey, fallbackText) {
   const wrapper = document.createElement('div');
-  const info = assets[key];
-  if (info && info.loaded && !info.failed) {
+  const state = assetStore[assetKey];
+  if (state && state.loaded && !state.failed) {
     const img = document.createElement('img');
     img.className = 'asset';
-    img.src = info.src;
+    img.src = state.src;
     img.alt = fallbackText;
     wrapper.appendChild(img);
   } else {
@@ -196,7 +536,7 @@ function createUnitNode(unit) {
 
   const stats = document.createElement('div');
   stats.className = 'stats';
-  stats.textContent = `ATK ${unit.attack} / HP ${unit.hp}`;
+  stats.textContent = `L${unit.level} ATK ${unit.attack} HP ${unit.hp}/${unit.maxHP} Stone ${unit.investedStone}`;
 
   node.append(name, stats);
   return node;
@@ -214,7 +554,6 @@ function createLeaderNode(side) {
   const hp = document.createElement('div');
   hp.className = 'stats';
   hp.textContent = `HP ${side === 'player' ? gameState.playerHP : gameState.enemyHP}`;
-
   card.append(name, hp);
   return card;
 }
@@ -222,16 +561,16 @@ function createLeaderNode(side) {
 function createCell(slotKey) {
   const meta = SLOT_META[slotKey];
   const cell = document.createElement('div');
-  cell.dataset.key = slotKey;
   cell.classList.add('cell');
+  cell.dataset.key = slotKey;
 
-  if (!meta.playable && meta.row === 'back') {
+  if (!meta.playable) {
     cell.classList.add('blocked');
     return cell;
   }
 
   if (meta.row === 'leader') {
-    cell.classList.add('leader');
+    cell.classList.add('leader-slot');
     cell.appendChild(createLeaderNode(meta.side));
     return cell;
   }
@@ -249,17 +588,17 @@ function createCell(slotKey) {
 
 function renderBoard() {
   if (!gameState.dirty.board) return;
-  const frag = document.createDocumentFragment();
+  const fragment = document.createDocumentFragment();
   BOARD_ORDER.forEach((slotKey) => {
-    frag.appendChild(createCell(slotKey));
+    fragment.appendChild(createCell(slotKey));
   });
-  ui.battlefield.replaceChildren(frag);
+  ui.battlefield.replaceChildren(fragment);
   gameState.dirty.board = false;
 }
 
 function renderHand() {
   if (!gameState.dirty.hand) return;
-  const frag = document.createDocumentFragment();
+  const fragment = document.createDocumentFragment();
   gameState.hand.forEach((card, index) => {
     const el = document.createElement('div');
     el.className = 'hand-card';
@@ -268,228 +607,42 @@ function renderHand() {
 
     const name = document.createElement('div');
     name.className = 'name';
-    name.textContent = card.name;
+    name.textContent = `${card.name} (L${card.level})`;
 
     const stats = document.createElement('div');
     stats.className = 'stats';
-    stats.textContent = `ATK ${card.attack} / HP ${card.hp}`;
+    stats.textContent = `ATK ${card.attack} HP ${card.hp}/${card.maxHP}`;
 
     el.append(name, stats);
-    frag.appendChild(el);
+    fragment.appendChild(el);
   });
-  ui.hand.replaceChildren(frag);
+  ui.hand.replaceChildren(fragment);
   gameState.dirty.hand = false;
 }
 
 function renderHud() {
   if (!gameState.dirty.hud) return;
-  ui.turn.textContent = `Turn: ${gameState.currentTurn}`;
+  ui.turnIndicator.textContent = `Turn: ${gameState.currentTurn}`;
+  ui.phaseIndicator.textContent = `Phase: ${gameState.phase}`;
+  ui.playerResource.textContent = `Player HP ${gameState.playerHP} / Stone ${gameState.playerStone}`;
+  ui.enemyResource.textContent = `Enemy HP ${gameState.enemyHP} / Stone ${gameState.enemyStone}`;
   ui.status.textContent = gameState.message;
   ui.restartBtn.classList.toggle('hidden', gameState.phase !== 'gameover');
+  ui.endTurnBtn.disabled = gameState.currentTurn !== 'player' || gameState.pendingLevelUp.active || gameState.phase !== 'playing';
   gameState.dirty.hud = false;
 }
 
-function rowHasFrontBlock(side, lane) {
-  const key = `${side}Front${lane}`;
-  return Boolean(gameState.board[key]);
-}
-
-function canAttack(attacker, targetKey) {
-  if (targetKey === `${attacker.owner}Leader`) return false;
-  if (!targetKey.startsWith(attacker.owner === 'player' ? 'enemy' : 'player')) return false;
-
-  const targetUnit = gameState.board[targetKey];
-  if (targetKey.endsWith('Leader')) {
-    const leftBlock = rowHasFrontBlock(attacker.owner === 'player' ? 'enemy' : 'player', 'Left');
-    const rightBlock = rowHasFrontBlock(attacker.owner === 'player' ? 'enemy' : 'player', 'Right');
-    if (attacker.range === 'frontline') return !leftBlock && !rightBlock;
-    if (attacker.range === 'line') return !leftBlock && !rightBlock;
-    return true;
+function renderLevelUpOverlay() {
+  if (!gameState.dirty.overlay) return;
+  const pending = gameState.pendingLevelUp;
+  ui.levelupOverlay.classList.toggle('hidden', !pending.active);
+  if (pending.active) {
+    const unit = gameState.board[pending.slotKey];
+    const canPay = getOwnerStone(pending.owner) >= CONFIG.levelUpCost;
+    ui.levelupText.textContent = `${unit?.name ?? 'Unit'} を強化しますか？ 消費: ${CONFIG.levelUpCost} stone`;
+    ui.levelupYes.disabled = !canPay || !unit || unit.level >= unit.maxLevel;
   }
-
-  if (!targetUnit) return false;
-  if (attacker.range === 'any') return true;
-
-  const targetMeta = SLOT_META[targetKey];
-  if (attacker.range === 'frontline') return targetMeta.row === 'front';
-
-  if (attacker.range === 'line') {
-    if (targetMeta.row === 'front') return true;
-    return !rowHasFrontBlock(targetMeta.side, targetMeta.lane);
-  }
-
-  return false;
-}
-
-function getValidAttackTargets(unit) {
-  const side = unit.owner === 'player' ? 'enemy' : 'player';
-  const targets = [
-    `${side}FrontLeft`,
-    `${side}FrontRight`,
-    `${side}BackLeft`,
-    `${side}BackRight`,
-    `${side}Leader`,
-  ];
-  return targets.filter((key) => canAttack(unit, key));
-}
-
-function getValidSummonTargets() {
-  return PLAYER_SUMMON_SLOTS.filter((slot) => !gameState.board[slot]);
-}
-
-function beginCardDrag(handIndex, e) {
-  if (gameState.phase !== 'playing' || gameState.currentTurn !== 'player' || gameState.playerSummonedThisTurn) return;
-  if (!gameState.hand[handIndex]) return;
-
-  gameState.drag.active = true;
-  gameState.drag.pointerId = e.pointerId;
-  gameState.drag.kind = 'summon';
-  gameState.drag.cardIndex = handIndex;
-  gameState.drag.fromSlot = null;
-  gameState.drag.unitId = null;
-  gameState.drag.x = e.clientX;
-  gameState.drag.y = e.clientY;
-  gameState.drag.validTargets = getValidSummonTargets();
-  gameState.message = '有効なプレイヤースロットにドロップで召喚';
-  markDirty('hud');
-}
-
-function beginUnitDrag(slotKey, e) {
-  const unit = gameState.board[slotKey];
-  if (!unit) return;
-  if (gameState.phase !== 'playing' || gameState.currentTurn !== 'player') return;
-  if (unit.owner !== 'player' || unit.hasActed) return;
-
-  gameState.drag.active = true;
-  gameState.drag.pointerId = e.pointerId;
-  gameState.drag.kind = 'attack';
-  gameState.drag.cardIndex = null;
-  gameState.drag.fromSlot = slotKey;
-  gameState.drag.unitId = unit.id;
-  gameState.drag.x = e.clientX;
-  gameState.drag.y = e.clientY;
-  gameState.drag.validTargets = getValidAttackTargets(unit);
-  gameState.message = '有効なターゲットにドロップで即攻撃';
-  markDirty('hud');
-}
-
-function clearDrag() {
-  gameState.drag = {
-    active: false,
-    pointerId: null,
-    kind: null,
-    cardIndex: null,
-    fromSlot: null,
-    unitId: null,
-    x: 0,
-    y: 0,
-    validTargets: [],
-  };
-  ui.dragGhost.classList.add('hidden');
-  ui.aimLine.classList.add('hidden');
-}
-
-function summonFromHand(handIndex, slotKey) {
-  if (!PLAYER_SUMMON_SLOTS.includes(slotKey) || gameState.board[slotKey]) return false;
-  const card = gameState.hand[handIndex];
-  if (!card) return false;
-  gameState.hand.splice(handIndex, 1);
-  card.hasActed = true;
-  gameState.board[slotKey] = card;
-  gameState.playerSummonedThisTurn = true;
-  gameState.message = `${card.name} を配置`;
-  markDirty('board', 'hand', 'hud');
-  return true;
-}
-
-function applyDamageToLeader(side, amount) {
-  if (side === 'player') gameState.playerHP -= amount;
-  else gameState.enemyHP -= amount;
-}
-
-function removeDeadUnits() {
-  const boardKeys = ['enemyBackLeft', 'enemyFrontLeft', 'enemyFrontRight', 'enemyBackRight', 'playerFrontLeft', 'playerFrontRight', 'playerBackLeft', 'playerBackRight'];
-  boardKeys.forEach((key) => {
-    const unit = gameState.board[key];
-    if (unit && unit.hp <= 0) gameState.board[key] = null;
-  });
-}
-
-function resolveAttack(attackerSlot, targetKey) {
-  const attacker = gameState.board[attackerSlot];
-  if (!attacker || attacker.hasActed || !canAttack(attacker, targetKey)) return false;
-
-  if (targetKey.endsWith('Leader')) {
-    applyDamageToLeader(targetKey.startsWith('player') ? 'player' : 'enemy', attacker.attack);
-  } else {
-    gameState.board[targetKey].hp -= attacker.attack;
-  }
-
-  attacker.hasActed = true;
-  gameState.transientEffects.push({ targetKey, until: performance.now() + CONFIG.hitEffectMs });
-  removeDeadUnits();
-
-  if (gameState.playerHP <= 0 || gameState.enemyHP <= 0) {
-    gameState.phase = 'gameover';
-    gameState.message = gameState.playerHP <= 0 ? '敗北…' : '勝利！';
-  }
-
-  markDirty('board', 'hud');
-  return true;
-}
-
-function setDropHighlights() {
-  document.querySelectorAll('.drop-valid, .drop-invalid').forEach((el) => {
-    el.classList.remove('drop-valid', 'drop-invalid');
-  });
-
-  if (!gameState.drag.active) return;
-
-  const candidates = gameState.drag.kind === 'summon' ? PLAYER_SUMMON_SLOTS : ENEMY_TARGETS;
-  candidates.forEach((key) => {
-    const cell = ui.battlefield.querySelector(`[data-key='${key}']`);
-    if (!cell) return;
-    if (gameState.drag.validTargets.includes(key)) cell.classList.add('drop-valid');
-    else cell.classList.add('drop-invalid');
-  });
-}
-
-function getCellKeyAtPoint(x, y) {
-  const found = document.elementFromPoint(x, y);
-  const cell = found && found.closest('[data-key]');
-  return cell ? cell.dataset.key : null;
-}
-
-function updateDragOverlay() {
-  if (!gameState.drag.active) return;
-
-  if (gameState.drag.kind === 'summon') {
-    const card = gameState.hand[gameState.drag.cardIndex];
-    if (!card) return;
-    ui.dragGhost.classList.remove('hidden');
-    ui.dragGhost.style.left = `${gameState.drag.x}px`;
-    ui.dragGhost.style.top = `${gameState.drag.y}px`;
-    ui.dragGhost.textContent = `${card.name} ATK${card.attack} HP${card.hp}`;
-    ui.aimLine.classList.add('hidden');
-    return;
-  }
-
-  ui.dragGhost.classList.add('hidden');
-  const source = ui.battlefield.querySelector(`[data-key='${gameState.drag.fromSlot}'] .unit`);
-  if (!source) return;
-  const rect = source.getBoundingClientRect();
-  const x0 = rect.left + rect.width / 2;
-  const y0 = rect.top + rect.height / 2;
-  const dx = gameState.drag.x - x0;
-  const dy = gameState.drag.y - y0;
-  const len = Math.hypot(dx, dy);
-  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-
-  ui.aimLine.classList.remove('hidden');
-  ui.aimLine.style.left = `${x0}px`;
-  ui.aimLine.style.top = `${y0}px`;
-  ui.aimLine.style.width = `${len}px`;
-  ui.aimLine.style.transform = `rotate(${angle}deg)`;
+  gameState.dirty.overlay = false;
 }
 
 function applyTransientEffects(now) {
@@ -500,59 +653,31 @@ function applyTransientEffects(now) {
   });
 }
 
-function endTurn() {
-  if (gameState.phase !== 'playing') return;
-  gameState.currentTurn = gameState.currentTurn === 'player' ? 'enemy' : 'player';
-
-  const boardKeys = Object.keys(gameState.board);
-  boardKeys.forEach((key) => {
-    const unit = gameState.board[key];
-    if (unit && unit.owner === gameState.currentTurn) unit.hasActed = false;
-  });
-
-  if (gameState.currentTurn === 'player') {
-    gameState.playerSummonedThisTurn = false;
-    gameState.message = 'あなたのターン';
-  } else {
-    gameState.enemyActionAt = performance.now() + CONFIG.enemyDelayMs;
-    gameState.message = '敵のターン';
-  }
-
-  markDirty('board', 'hud');
-}
-
-function chooseEnemySummonSlot() {
-  const openFront = ['enemyFrontLeft', 'enemyFrontRight'].filter((key) => !gameState.board[key]);
-  if (openFront.length) return openFront[Math.floor(Math.random() * openFront.length)];
-  const openBack = ['enemyBackLeft', 'enemyBackRight'].filter((key) => !gameState.board[key]);
-  if (openBack.length) return openBack[Math.floor(Math.random() * openBack.length)];
-  return null;
-}
-
 function runEnemyAI() {
-  if (gameState.currentTurn !== 'enemy' || gameState.phase !== 'playing') return;
+  if (gameState.phase !== 'playing' || gameState.currentTurn !== 'enemy' || gameState.pendingLevelUp.active) return;
 
-  if (Math.random() < 0.85) {
-    const slot = chooseEnemySummonSlot();
-    if (slot) {
-      const pool = [
-        createUnit('enemy', 'melee', 'Raider'),
-        createUnit('enemy', 'ranged', 'Bowman'),
-        createUnit('enemy', 'sniper', 'Watcher'),
-      ];
-      gameState.board[slot] = pool[Math.floor(Math.random() * pool.length)];
-      markDirty('board');
-    }
+  while (gameState.enemyStone >= CONFIG.summonCost) {
+    const openSlots = getValidSummonTargets('enemy');
+    if (!openSlots.length) break;
+    const slot = openSlots[Math.floor(Math.random() * openSlots.length)];
+    const unit = cloneTemplateForOwner('enemy');
+    unit.hasActed = true;
+    gameState.board[slot] = unit;
+    gameState.enemyStone -= CONFIG.summonCost;
   }
 
-  ['enemyFrontLeft', 'enemyFrontRight', 'enemyBackLeft', 'enemyBackRight'].forEach((slot) => {
+  for (const slot of ENEMY_SUMMON_SLOTS) {
     const unit = gameState.board[slot];
-    if (!unit || unit.hasActed) return;
-    const targets = getValidAttackTargets(unit);
-    if (!targets.length) return;
-    const priority = targets.find((key) => key.includes('Front')) || targets[0];
-    resolveAttack(slot, priority);
-  });
+    if (!unit || unit.owner !== 'enemy' || unit.hasActed) continue;
+    const targets = getValidAttackTargets(slot, unit);
+    if (!targets.length) continue;
+    const target = targets.includes('playerLeader') ? 'playerLeader' : targets[0];
+    resolveAttack(slot, target);
+    if (gameState.pendingLevelUp.active) {
+      applyLevelUpChoice(getOwnerStone('enemy') >= CONFIG.levelUpCost);
+    }
+    if (gameState.phase !== 'playing') break;
+  }
 
   if (gameState.phase === 'playing') endTurn();
 }
@@ -568,6 +693,7 @@ function render(now) {
   renderBoard();
   renderHand();
   renderHud();
+  renderLevelUpOverlay();
   setDropHighlights();
   updateDragOverlay();
   applyTransientEffects(now);
@@ -582,15 +708,14 @@ function onPointerMove(e) {
 function onPointerUp(e) {
   if (!gameState.drag.active || e.pointerId !== gameState.drag.pointerId) return;
 
-  const targetKey = getCellKeyAtPoint(e.clientX, e.clientY);
+  const targetKey = findCellAtPoint(e.clientX, e.clientY);
   if (targetKey && gameState.drag.validTargets.includes(targetKey)) {
     if (gameState.drag.kind === 'summon') {
-      summonFromHand(gameState.drag.cardIndex, targetKey);
+      summonUnit('player', gameState.drag.handIndex, targetKey);
     } else if (gameState.drag.kind === 'attack') {
       resolveAttack(gameState.drag.fromSlot, targetKey);
     }
   }
-
   clearDrag();
 }
 
@@ -598,15 +723,14 @@ function bindEvents() {
   ui.hand.addEventListener('pointerdown', (e) => {
     const card = e.target.closest('.hand-card');
     if (!card) return;
-    const handIndex = Number(card.dataset.handIndex);
     e.preventDefault();
-    beginCardDrag(handIndex, e);
+    beginCardDrag(Number(card.dataset.handIndex), e);
   });
 
   ui.battlefield.addEventListener('pointerdown', (e) => {
-    const unit = e.target.closest('.unit');
-    if (!unit) return;
-    const cell = unit.closest('[data-key]');
+    const unitEl = e.target.closest('.unit');
+    if (!unitEl) return;
+    const cell = unitEl.closest('[data-key]');
     if (!cell) return;
     e.preventDefault();
     beginUnitDrag(cell.dataset.key, e);
@@ -621,9 +745,11 @@ function bindEvents() {
   });
 
   ui.restartBtn.addEventListener('click', () => {
-    clearDrag();
     resetGame();
   });
+
+  ui.levelupYes.addEventListener('click', () => applyLevelUpChoice(true));
+  ui.levelupSkip.addEventListener('click', () => applyLevelUpChoice(false));
 }
 
 function gameLoop(now) {
@@ -632,7 +758,22 @@ function gameLoop(now) {
   requestAnimationFrame(gameLoop);
 }
 
-loadAssets();
+initAssets();
 bindEvents();
 resetGame();
 requestAnimationFrame(gameLoop);
+
+// Expose helpers for debugging/tests.
+window.__game = {
+  gameState,
+  getAdjacentTargets,
+  getReachableTargets,
+  canUnitAttackTarget,
+  resolveAttack,
+  tryLevelUp,
+  refundInvestedStones,
+  startTurn,
+  endTurn,
+  summonUnit,
+  removeDefeatedUnits,
+};
