@@ -59,14 +59,14 @@ const RANGE_MAP = {
     enemyBackRight: ['enemyFrontRight'],
   },
   one_jump: {
-    playerFrontLeft: ['enemyBackLeft', 'enemyFrontRight'],
-    playerFrontRight: ['enemyBackRight', 'enemyFrontLeft'],
-    playerBackLeft: ['enemyFrontLeft', 'enemyLeader'],
-    playerBackRight: ['enemyFrontRight', 'enemyLeader'],
-    enemyFrontLeft: ['playerBackLeft', 'playerFrontRight'],
-    enemyFrontRight: ['playerBackRight', 'playerFrontLeft'],
-    enemyBackLeft: ['playerFrontLeft', 'playerLeader'],
-    enemyBackRight: ['playerFrontRight', 'playerLeader'],
+    playerBackLeft: ['playerFrontLeft', 'playerFrontRight', 'enemyFrontLeft'],
+    playerBackRight: ['playerFrontLeft', 'playerFrontRight', 'enemyFrontRight'],
+    playerFrontLeft: ['enemyFrontLeft', 'enemyFrontRight', 'enemyBackLeft'],
+    playerFrontRight: ['enemyFrontLeft', 'enemyFrontRight', 'enemyBackRight'],
+    enemyBackLeft: ['enemyFrontLeft', 'enemyFrontRight', 'playerFrontLeft'],
+    enemyBackRight: ['enemyFrontLeft', 'enemyFrontRight', 'playerFrontRight'],
+    enemyFrontLeft: ['playerFrontLeft', 'playerFrontRight', 'playerBackLeft'],
+    enemyFrontRight: ['playerFrontLeft', 'playerFrontRight', 'playerBackRight'],
   },
   anywhere: {},
 };
@@ -196,9 +196,9 @@ function resetGame() {
     if (!slot.endsWith('Leader')) gameState.board[slot] = null;
   });
   gameState.hand = [];
-  drawCardForPlayer();
-  drawCardForPlayer();
-  drawCardForPlayer();
+  for (let i = 0; i < 5; i++) {
+    drawCardForPlayer();
+  }
   clearDrag();
   gameState.pendingLevelUp = { active: false, slotKey: null, owner: null };
   gameState.transientEffects = [];
