@@ -3,27 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Card Hero Tactical Prototype</title>
+    <title>Tactical Card Battle Prototype</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div id="app">
       <header class="hud">
         <div id="turn-indicator"></div>
-        <div id="message"></div>
-        <button id="end-turn-btn">End Turn</button>
-        <button id="restart-btn" class="hidden">Restart</button>
+        <div id="status"></div>
+        <button id="end-turn-btn" type="button">End Turn</button>
+        <button id="restart-btn" type="button" class="hidden">Restart</button>
       </header>
 
-      <main id="battlefield"></main>
+      <main>
+        <section id="battlefield" aria-label="Battlefield"></section>
+      </main>
 
-      <section>
+      <section id="hand-panel" aria-label="Player hand">
         <h2>Hand</h2>
         <div id="hand"></div>
       </section>
     </div>
 
-    <div id="aim-line" class="hidden"></div>
+    <div id="drag-ghost" class="drag-ghost hidden"></div>
+    <div id="aim-line" class="aim-line hidden"></div>
+
     <script src="script.js"></script>
   </body>
 </html>
